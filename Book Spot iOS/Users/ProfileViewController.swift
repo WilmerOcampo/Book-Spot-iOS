@@ -43,7 +43,7 @@ class ProfileViewController: UIViewController {
     func fetchUserData(userID: String) {
         let ref = Database.database().reference().child("users").child(userID)
         
-        ref.observeSingleEvent(of: .value) { snapshot in
+        ref.observe(.value) { snapshot in
             guard let userData = snapshot.value as? [String: Any] else {
                 self.showError("No se pudo obtener los datos del usuario.")
                 return
@@ -53,7 +53,6 @@ class ProfileViewController: UIViewController {
                let dni = userData["dni"] as? String,
                let lastname = userData["lastname"] as? String,
                let number = userData["number"] as? String {
-                // Asignar los valores a las etiquetas
                 self.nameLabel.text = name + " " + lastname
                 self.dniLabel.text = dni
                 self.numberLabel.text = number
@@ -62,18 +61,11 @@ class ProfileViewController: UIViewController {
     }
     
     func showAuthenticationAlert() {
-        let alertController = UIAlertController(title: "No autenticado",
-                                                message: "No estás autenticado. ¿Quieres iniciar sesión?",
-                                                preferredStyle: .alert)
-        let confirmAction = UIAlertAction(title: "OK", style: .default) { _ in
+        AlertManager.showAuthenticationAlert(on: self, message: "No estás autenticado. ¿Quieres iniciar sesión?", loginAction: {
             NavigationManager.goToLogin(from: self)
-        }
-        let cancelAction = UIAlertAction(title: "Cancelar", style: .cancel) { _ in
+        }, cancelAction: {
             NavigationManager.goToHome(from: self)
-        }
-        alertController.addAction(confirmAction)
-        alertController.addAction(cancelAction)
-        self.present(alertController, animated: true, completion: nil)
+        })
     }
     
     // Realizar el logout

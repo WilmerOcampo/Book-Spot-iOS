@@ -98,7 +98,7 @@ extension BookViewController {
     func findAllBooks(){
         let ref = Database.database().reference().child("books")
         
-        ref.observeSingleEvent(of: .value, with: { snapshot in
+        ref.observe(.value) { snapshot in
             var books: [Book] = []
             
             for child in snapshot.children {
@@ -113,7 +113,7 @@ extension BookViewController {
             
             self.books = books
             self.booksCollectionView.reloadData()
-        })
+        }
     }
     
     func updateBookStock(book: Book) {
@@ -125,7 +125,7 @@ extension BookViewController {
     
     func findAllCategories(){
         let ref = Database.database().reference().child("categories")
-        ref.observeSingleEvent(of: .value, with: { snapshot in
+        ref.observe(.value) { snapshot in
             var categories: [Category] = []
             
             for child in snapshot.children {
@@ -137,7 +137,7 @@ extension BookViewController {
             }
             self.categories = categories
             self.categoriesCollectionView.reloadData()
-        })
+        }
     }
     
     func reserveBook(book: Book) {

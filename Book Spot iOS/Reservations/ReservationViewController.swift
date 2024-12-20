@@ -64,7 +64,7 @@ class ReservationViewController: UIViewController, UITableViewDataSource, UITabl
         let cancelAction = UIContextualAction(style: .destructive, title: "Cancelar") { _, _, completionHandler in
             self.showCancelConfirmation(forReservation: reservation) { shouldCancel in
                 if shouldCancel {
-                    self.cancelReservation(reservationID: reservation.bookID)
+                    self.cancelReservation(reservation: reservation)
                 }
             }
             completionHandler(true)
@@ -84,7 +84,7 @@ extension ReservationViewController {
         
         let ref = Database.database().reference().child("reservations")
         
-        ref.observeSingleEvent(of: .value) { snapshot in
+        ref.observe(.value) { snapshot in
             if !snapshot.exists() {
                 print("No se encontraron reservas.")
                 return
@@ -94,8 +94,11 @@ extension ReservationViewController {
             for child in snapshot.children {
                 if let snapshot = child as? DataSnapshot,
                    let reservationDict = snapshot.value as? [String: Any] {
-                    if let reservationUserID = reservationDict["userID"] as? String, reservationUserID == userID {
-                        if let reservation = Reservation(dict: reservationDict) {
+                    
+                    let reservationUID = snapshot.key
+                    
+                    if let reservation = Reservation(dict: reservationDict, uid: reservationUID) {
+                        if reservation.userID == userID {
                             userReservations.append(reservation)
                         }
                     }
@@ -105,7 +108,6 @@ extension ReservationViewController {
             self.loadBookDetails()
             self.reservationsTableView.reloadData()
         }
-        self.reservationsTableView.reloadData()
     }
     
     func loadBookDetails() {
@@ -114,12 +116,13 @@ extension ReservationViewController {
             bookIDs.append(reservation.bookID)
         }
         let ref = Database.database().reference().child("books")
-        ref.observeSingleEvent(of: .value) { snapshot in
+        ref.observe(.value) { snapshot in
             for child in snapshot.children {
                 if let snapshot = child as? DataSnapshot,
                    let bookDict = snapshot.value as? [String: Any],
                    let bookID = snapshot.key as? String,
                    bookIDs.contains(bookID) {
+                    
                     if let title = bookDict["title"] as? String,
                        let image = bookDict["image"] as? String {
                         let book = SimpleBook(title: title, image: image)
@@ -131,22 +134,19 @@ extension ReservationViewController {
         }
     }
     
-    func cancelReservation(reservationID: String) {
-        let ref = Database.database().reference().child("reservations")
-        ref.queryOrdered(byChild: "bookID").queryEqual(toValue: reservationID).observeSingleEvent(of: .childAdded) { snapshot in
-            if let reservationDict = snapshot.value as? [String: Any] {
-                let reservationUpdate = [
-                    "status": "Cancelada"
-                ]
-                snapshot.ref.updateChildValues(reservationUpdate) { error, _ in
-                    if let error = error {
-                        self.showErrorAlert(message: "Error al cancelar la reserva: \(error.localizedDescription)")
-                    } else {
-                        self.incrementBookStock(bookID: reservationDict["bookID"] as! String)
-                        self.showSuccessAlert(message: "Reserva cancelada exitosamente.")
-                        self.findAllReservations()
-                    }
-                }
+    func cancelReservation(reservation: Reservation) {
+        let ref = Database.database().reference().child("reservations").child(reservation.uid)
+        let reservationUpdate = [
+            "status": "Cancelada"
+        ]
+        
+        ref.updateChildValues(reservationUpdate) { error, _ in
+            if let error = error {
+                self.showErrorAlert(message: "Error al cancelar la reserva: \(error.localizedDescription)")
+            } else {
+                self.incrementBookStock(bookID: reservation.bookID)
+                self.showSuccessAlert(message: "Reserva cancelada exitosamente.")
+                self.findAllReservations()
             }
         }
     }
@@ -154,7 +154,8 @@ extension ReservationViewController {
     func incrementBookStock(bookID: String) {
         let ref = Database.database().reference().child("books").child(bookID)
         ref.observeSingleEvent(of: .value) { snapshot in
-            if let bookDict = snapshot.value as? [String: Any], let stock = bookDict["stock"] as? Int {
+            if let bookDict = snapshot.value as? [String: Any],
+               let stock = bookDict["stock"] as? Int {
                 ref.updateChildValues(["stock": stock + 1]) { error, _ in
                     if let error = error {
                         self.showErrorAlert(message: "Error al actualizar el stock: \(error.localizedDescription)")
