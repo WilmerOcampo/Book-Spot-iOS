@@ -66,10 +66,10 @@ class ProfileViewController: UIViewController {
                                                 message: "No estás autenticado. ¿Quieres iniciar sesión?",
                                                 preferredStyle: .alert)
         let confirmAction = UIAlertAction(title: "OK", style: .default) { _ in
-            self.goToLogin()
+            NavigationManager.goToLogin(from: self)
         }
         let cancelAction = UIAlertAction(title: "Cancelar", style: .cancel) { _ in
-            self.goToHome()
+            NavigationManager.goToHome(from: self)
         }
         alertController.addAction(confirmAction)
         alertController.addAction(cancelAction)
@@ -80,7 +80,7 @@ class ProfileViewController: UIViewController {
     func performLogout() {
         do {
             try Auth.auth().signOut()
-            self.goToHome()
+            NavigationManager.goToHome(from: self)
         } catch let signOutError as NSError {
             self.showError("Error al cerrar sesión: \(signOutError.localizedDescription)")
         }
@@ -88,25 +88,7 @@ class ProfileViewController: UIViewController {
 }
 
 extension ProfileViewController {
-    func goToLogin(){
-        let stoyboard = UIStoryboard(name: "Main", bundle: nil)
-        let view = stoyboard.instantiateViewController(withIdentifier: "LoginNavView") as! LoginNavViewController
-        view.modalPresentationStyle = .fullScreen
-        present(view, animated: true)
-    }
-    
-    func goToHome() {
-        let storyboard = UIStoryboard(name: "Main", bundle: nil)
-        let view = storyboard.instantiateViewController(withIdentifier: "HomeView") as! HomeViewController
-        view.modalPresentationStyle = .fullScreen
-        present(view, animated: true)
-    }
-}
-
-extension ProfileViewController {
     func showError(_ message: String) {
-        let alertController = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
-        alertController.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alertController, animated: true)
+        AlertManager.showErrorAlert(on: self, message: message)
     }
 }

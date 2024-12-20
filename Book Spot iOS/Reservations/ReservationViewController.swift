@@ -27,9 +27,13 @@ class ReservationViewController: UIViewController, UITableViewDataSource, UITabl
         reservationsTableView.dataSource = self
         reservationsTableView.delegate = self
         self.findAllReservations()
-    
+        
         if Auth.auth().currentUser == nil {
-            showAuthenticationAlert()
+            AlertManager.showAuthenticationAlert(on: self, message: "Necesitas iniciar sesión para ver tus préstamos", loginAction: {
+                NavigationManager.goToLogin(from: self)
+            }, cancelAction: {
+                NavigationManager.goToHome(from: self)
+            })
         }
     }
     
@@ -73,21 +77,24 @@ class ReservationViewController: UIViewController, UITableViewDataSource, UITabl
 
 extension ReservationViewController {
     func findAllReservations() {
-        guard let userID = getCurrentUserID() else {
+        guard let userID = UserManager.getCurrentUserID() else {
             print("Usuario no autenticado")
             return
         }
+        
         let ref = Database.database().reference().child("reservations")
+        
         ref.observeSingleEvent(of: .value) { snapshot in
             if !snapshot.exists() {
                 print("No se encontraron reservas.")
                 return
             }
+            
             var userReservations: [Reservation] = []
             for child in snapshot.children {
                 if let snapshot = child as? DataSnapshot,
                    let reservationDict = snapshot.value as? [String: Any] {
-                    if let userID = reservationDict["userID"] as? String, userID == userID {
+                    if let reservationUserID = reservationDict["userID"] as? String, reservationUserID == userID {
                         if let reservation = Reservation(dict: reservationDict) {
                             userReservations.append(reservation)
                         }
@@ -96,7 +103,9 @@ extension ReservationViewController {
             }
             self.reservations = userReservations
             self.loadBookDetails()
+            self.reservationsTableView.reloadData()
         }
+        self.reservationsTableView.reloadData()
     }
     
     func loadBookDetails() {
@@ -156,76 +165,20 @@ extension ReservationViewController {
             }
         }
     }
-    
-    func getCurrentUserID() -> String? {
-        if let user = Auth.auth().currentUser {
-            return user.uid
-        }
-        return nil
-    }
 }
 
 extension ReservationViewController {
     func showCancelConfirmation(forReservation reservation: Reservation, completion: @escaping (Bool) -> Void) {
-        let alertController = UIAlertController(title: "Confirmar cancelación", message: "¿Estás seguro de que deseas cancelar esta reserva?", preferredStyle: .alert)
-        
-        let cancelAction = UIAlertAction(title: "Cancelar", style: .cancel) { _ in
-            completion(false)
-        }
-        
-        let confirmAction = UIAlertAction(title: "Confirmar", style: .destructive) { _ in
+        AlertManager.showConfirmationAlert(on: self, title: "Confirmar cancelación", message: "¿Estás seguro de que deseas cancelar esta reserva?", confirmButtonTitle: "Confirmar", cancelButtonTitle: "Cancelar", confirmHandler: {
             completion(true)
-        }
-        
-        alertController.addAction(cancelAction)
-        alertController.addAction(confirmAction)
-        
-        self.present(alertController, animated: true, completion: nil)
+        })
     }
     
     func showSuccessAlert(message: String) {
-        let alertController = UIAlertController(title: "Éxito", message: message, preferredStyle: .alert)
-        let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
-        alertController.addAction(okAction)
-        self.present(alertController, animated: true, completion: nil)
+        AlertManager.showSuccessAlert(on: self, message: message)
     }
     
     func showErrorAlert(message: String) {
-        let alertController = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
-        let okAction = UIAlertAction(title: "OK", style: .default, handler: nil)
-        alertController.addAction(okAction)
-        self.present(alertController, animated: true, completion: nil)
-    }
-    
-    func showAuthenticationAlert() {
-        let alertController = UIAlertController(title: "No autenticado",
-                                                message: "Necesitas iniciar sesión para ver tus prestamos",
-                                                preferredStyle: .alert)
-        let confirmAction = UIAlertAction(title: "OK", style: .default) { _ in
-            self.goToLogin()
-        }
-        let cancelAction = UIAlertAction(title: "Cancelar", style: .cancel) { _ in
-            self.goToHome()
-        }
-        alertController.addAction(confirmAction)
-        alertController.addAction(cancelAction)
-        self.present(alertController, animated: true, completion: nil)
+        AlertManager.showErrorAlert(on: self, message: message)
     }
 }
-
-extension ReservationViewController {
-    func goToLogin(){
-        let stoyboard = UIStoryboard(name: "Main", bundle: nil)
-        let view = stoyboard.instantiateViewController(withIdentifier: "LoginNavView") as! LoginNavViewController
-        view.modalPresentationStyle = .fullScreen
-        present(view, animated: true)
-    }
-    
-    func goToHome() {
-        let storyboard = UIStoryboard(name: "Main", bundle: nil)
-        let view = storyboard.instantiateViewController(withIdentifier: "HomeView") as! HomeViewController
-        view.modalPresentationStyle = .fullScreen
-        present(view, animated: true)
-    }
-}
-

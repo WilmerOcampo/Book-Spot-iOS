@@ -92,14 +92,6 @@ class BookViewController: UIViewController, UICollectionViewDataSource, UICollec
         }
         return UIEdgeInsets.zero
     }
-    
-    func getCurrentUserID() -> String? {
-        if let user = Auth.auth().currentUser {
-            return user.uid
-        }
-        return nil
-    }
-    
 }
 
 extension BookViewController {
@@ -149,8 +141,11 @@ extension BookViewController {
     }
     
     func reserveBook(book: Book) {
-        guard let userID = getCurrentUserID() else {
-            print("Usuario no autenticado")
+        guard let userID = UserManager.getCurrentUserID() else {
+            AlertManager.showAuthenticationAlert(on: self, message: "Necesitas iniciar sesión para poder reservar", loginAction: {
+                NavigationManager.goToLogin(from: self)
+            }, cancelAction: {
+            })
             return
         }
         
@@ -171,8 +166,10 @@ extension BookViewController {
         
         ref.setValue(reservationData) { error, _ in
             if let error = error {
-                print("Error al guardar la reserva: \(error.localizedDescription)")
+                AlertManager.showErrorAlert(on: self, message: "Error al guardar la reserva: \(error.localizedDescription)")
+                //print()
             } else {
+                AlertManager.showSuccessAlert(on: self, message: "Reserva genera exitosamente.")
                 self.updateBookStock(book: book)
             }
         }
@@ -181,16 +178,8 @@ extension BookViewController {
 
 extension BookViewController {
     func showConfirmationAlert(book: Book) {
-        let alert = UIAlertController(title: "Confirmación de Reserva",
-                                      message: "¿Estás seguro de que deseas reservar el libro \"\(book.title)\"?",
-                                      preferredStyle: .alert)
-        
-        let confirmAction = UIAlertAction(title: "Confirmar", style: .default) { _ in
+        AlertManager.showConfirmationAlert(on: self, title: "Confirmación de Reserva", message: "¿Estás seguro de que deseas reservar el libro \"\(book.title)\"?", confirmButtonTitle: "Confirmar", cancelButtonTitle: "Cancelar", confirmHandler: {
             self.reserveBook(book: book)
-        }
-        let cancelAction = UIAlertAction(title: "Cancelar", style: .cancel, handler: nil)
-        alert.addAction(confirmAction)
-        alert.addAction(cancelAction)
-        self.present(alert, animated: true, completion: nil)
+        })
     }
 }

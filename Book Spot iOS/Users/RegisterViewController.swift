@@ -30,29 +30,24 @@ class RegisterViewController: UIViewController {
               let lastname = lastname.text, !lastname.isEmpty,
               let dni = dni.text, !dni.isEmpty,
               let number = number.text, !number.isEmpty else {
-            showError("Todos los campos son obligatorios.")
+            AlertManager.showErrorAlert(on: self, message: "Todos los campos son obligatorios.")
             return
         }
-        
-        let alertController = UIAlertController(
+        AlertManager.showConfirmationAlert(
+            on: self,
             title: "Confirmar Registro",
             message: "¿Estás seguro de que deseas registrarte con los siguientes datos?\n\nEmail: \(email)\nNombre: \(name) \(lastname)\nDNI: \(dni)\nNúmero: \(number)",
-            preferredStyle: .alert
+            confirmButtonTitle: "Confirmar",
+            cancelButtonTitle: "Cancelar",
+            confirmHandler: { [weak self] in
+                self?.registerUser(email: email, password: password, name: name, lastname: lastname, dni: dni, number: number)
+            },
+            cancelHandler: nil
         )
-        
-        let confirmAction = UIAlertAction(title: "Confirmar", style: .default) { [weak self] _ in
-            self?.registerUser(email: email, password: password, name: name, lastname: lastname, dni: dni, number: number)
-        }
-        
-        let cancelAction = UIAlertAction(title: "Cancelar", style: .cancel, handler: nil)
-        
-        alertController.addAction(confirmAction)
-        alertController.addAction(cancelAction)
-        present(alertController, animated: true, completion: nil)
     }
     
     @IBAction func loginAction(_ sender: Any) {
-        self.goToLogin()
+        NavigationManager.goToLogin(from: self)
     }
 }
 
@@ -60,14 +55,17 @@ extension RegisterViewController {
     func registerUser(email: String, password: String, name: String, lastname: String, dni: String, number: String) {
         // Firebase Authentication
         Auth.auth().createUser(withEmail: email, password: password) { [weak self] authResult, error in
+            guard let self = self else {
+                return
+            }
             if let error = error {
-                self?.showError("Error en el registro: \(error.localizedDescription)")
+                AlertManager.showErrorAlert(on: self, message: "Error en el registro: \(error.localizedDescription)")
                 return
             }
             guard let user = authResult?.user else { return }
             let userData = User(name: name, lastname: lastname, dni: dni, number: number)
             // Firebase Realtime Database
-            self?.saveUserData(uid: user.uid, userData: userData)
+            self.saveUserData(uid: user.uid, userData: userData)
         }
     }
     
@@ -76,34 +74,12 @@ extension RegisterViewController {
         
         ref.setValue(userData.toDictionary()) { error, _ in
             if let error = error {
-                self.showError("Error al guardar los datos: \(error.localizedDescription)")
+                AlertManager.showErrorAlert(on: self, message: "Error al guardar los datos: \(error.localizedDescription)")
                 return
             }
-            self.goToHome()
+            AlertManager.showAlert(on: self, title: "Éxito", message: "Registro exitoso. ¡Bienvenido!", buttonTitle: "OK") {
+                NavigationManager.goToHome(from: self)
+            }
         }
-    }
-}
-
-extension RegisterViewController {
-    func goToLogin(){
-        let stoyboard = UIStoryboard(name: "Main", bundle: nil)
-        let view = stoyboard.instantiateViewController(withIdentifier: "LoginNavView") as! LoginNavViewController
-        view.modalPresentationStyle = .fullScreen
-        present(view, animated: true)
-    }
-    
-    func goToHome() {
-        let storyboard = UIStoryboard(name: "Main", bundle: nil)
-        let view = storyboard.instantiateViewController(withIdentifier: "HomeView") as! HomeViewController
-        view.modalPresentationStyle = .fullScreen
-        present(view, animated: true)
-    }
-}
-
-extension RegisterViewController {
-    func showError(_ message: String) {
-        let alertController = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
-        alertController.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alertController, animated: true)
     }
 }
